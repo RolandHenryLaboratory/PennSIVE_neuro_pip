@@ -12,6 +12,7 @@ show_help() {
   echo "  --ses  Specify the session name of the participant if run individually"
   echo "  -n, --name  Specify the name pattern of T1 images"
   echo "  -t, --toolpath  Specify the path to useful scripts or licenses"
+  echo "  --sinpath  Specify the path to a singularity image to be used"
   echo "  -c, --container  Specify the type of container to use. docker or singularity. Default is singularity"
   echo "  -s, --step   Specify the step of pipeline. segmentation, estimation or consolidation. Default is segmentation"
 }
@@ -30,6 +31,7 @@ name=""
 step=segmentation
 container=singularity
 mode=batch
+sin_path=""
 
 # Parse command-line arguments
 while [ $# -gt 0 ]; do
@@ -57,6 +59,10 @@ while [ $# -gt 0 ]; do
     -n|--name)
       shift
       name=$1
+      ;;
+    --sinpath)
+      shift
+      sin_path=$1
       ;;
     -t|--toolpath)
       shift
@@ -93,7 +99,7 @@ if [ "$mode" = "batch" ];then
           -B /scratch \
           --env SUBJECTS_DIR=$main_path/data/$subject/$session \
           --env SURFER_FRONTDOOR=1 \
-          --env FS_LICENSE=$tool_path/license/license.txt $tool_path/code/image/neuror.sif recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
+          --env FS_LICENSE=$tool_path/license/license.txt $sin_path recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
       done 
     fi
 
@@ -108,7 +114,7 @@ if [ "$mode" = "batch" ];then
           -B /scratch \
           --env SUBJECTS_DIR=$main_path/data/$subject/$session \
           --env SURFER_FRONTDOOR=1 \
-          --env FS_LICENSE=$tool_path/license/license.txt $tool_path/code/image/neuror.sif Rscript $tool_path/code/R/extraction.R -m $main_path -p $subject -s $session
+          --env FS_LICENSE=$tool_path/license/license.txt $sin_path Rscript $tool_path/code/R/extraction.R -m $main_path -p $subject -s $session
       done 
     fi
 
@@ -117,7 +123,7 @@ if [ "$mode" = "batch" ];then
            -B $main_path \
            -B $tool_path \
            -B /scratch \
-      $tool_path/code/image/neuror.sif \
+      $sin_path \
       Rscript $tool_path/code/R/consolidation.R -m $main_path
     fi
 
@@ -178,7 +184,7 @@ if [ "$mode" = "individual" ];then
       -B /scratch \
       --env SUBJECTS_DIR=$main_path/data/$p/$ses \
       --env SURFER_FRONTDOOR=1 \
-      --env FS_LICENSE=$tool_path/license/license.txt $tool_path/code/image/neuror.sif recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
+      --env FS_LICENSE=$tool_path/license/license.txt $sin_path recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
     fi
 
     if [ "$step" = "estimation" ];then
@@ -192,7 +198,7 @@ if [ "$mode" = "individual" ];then
           -B /scratch \
           --env SUBJECTS_DIR=$main_path/data/$subject/$session \
           --env SURFER_FRONTDOOR=1 \
-          --env FS_LICENSE=$tool_path/license/license.txt $tool_path/code/image/neuror.sif Rscript $tool_path/code/R/extraction.R -m $main_path -p $subject -s $session
+          --env FS_LICENSE=$tool_path/license/license.txt $sin_path Rscript $tool_path/code/R/extraction.R -m $main_path -p $subject -s $session
       done 
     fi
 
