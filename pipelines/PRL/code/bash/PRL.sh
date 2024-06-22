@@ -20,7 +20,7 @@ show_help() {
   echo "  --dilation   Specify whether to dilate lesion. Default is TRUE"
   echo "  --step   Specify the step of pipeline. preparation, PRL_run or consolidation. Default is preparation"
   echo "  --mode   Specify whether to run the pipeline individually or in a batch: individual or batch. Default is batch"
-  echo "  -c, --container   Specify the container to use: singularity, docker, none-local, none-cluster. Default is none-cluster"
+  echo "  -c, --container   Specify the container to use: singularity, docker, local, cluster. Default is cluster"
   echo "  --sinpath   Specify the path to the singularity image if a singularity container is used"
   echo "  --toolpath   Specify the path to the saved pipeline folder, eg: /path/to/folder"
 }
@@ -48,7 +48,7 @@ threshold=0.2
 dilation=TRUE
 step=preparation
 mode=batch
-c=none-cluster
+c=cluster
 sin_path=""
 tool_path=""
 
@@ -178,12 +178,12 @@ if [ "$step" == "preparation" ]; then
           t1_r=`find $main_path/data/$p/$s/anat -name $t1 -type f | xargs -I {} basename {}`
           flair_r=`find $main_path/data/$p/$s/anat -name $flair -type f | xargs -I {} basename {}`
           phase_r=`find $main_path/data/$p/$s/anat -name $phase -type f | xargs -I {} basename {}`
-          if [ "$c" == "none-cluster" ]; then
+          if [ "$c" == "cluster" ]; then
             bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
             --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions
-          elif [ "$c" == "none-local" ]; then
+          elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
@@ -223,12 +223,12 @@ if [ "$step" == "preparation" ]; then
     t1_r=`find $main_path/data/$p/$ses/anat -name $t1 -type f | xargs -I {} basename {}`
     flair_r=`find $main_path/data/$p/$ses/anat -name $flair -type f | xargs -I {} basename {}`
     phase_r=`find $main_path/data/$p/$ses/anat -name $phase -type f | xargs -I {} basename {}`
-    if [ "$c" == "none-cluster" ]; then
+    if [ "$c" == "cluster" ]; then
             bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
             --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
-          elif [ "$c" == "none-local" ]; then
+          elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
@@ -265,10 +265,10 @@ if [ "$step" == "PRL_run" ]; then
         ses=`ls $main_path/data/$p`
         for s in $ses;
         do
-          if [ "$c" == "none-cluster" ]; then
+          if [ "$c" == "cluster" ]; then
             bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
-          elif [ "$c" == "none-local" ]; then
+          elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "singularity" ]; then
@@ -298,10 +298,10 @@ if [ "$step" == "PRL_run" ]; then
       exit 1
     fi
 
-    if [ "$c" == "none-cluster" ]; then
+    if [ "$c" == "cluster" ]; then
             bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
-          elif [ "$c" == "none-local" ]; then
+          elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "singularity" ]; then
@@ -322,9 +322,9 @@ if [ "$step" == "PRL_run" ]; then
 fi 
 
 if [ "$step" == "consolidation" ]; then
-  if [ "$c" == "none-cluster" ]; then
+  if [ "$c" == "cluster" ]; then
     bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step
-  elif [ "$c" == "none-local" ]; then
+  elif [ "$c" == "local" ]; then
     Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step
   elif [ "$c" == "singularity" ]; then
     module load singularity

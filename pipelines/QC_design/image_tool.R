@@ -1,4 +1,4 @@
-.libPaths(c("/misc/appl/R-4.1/lib64/R/library","/home/zhengren/Desktop/cluster_set_up/r_packages"))
+#.libPaths(c("/misc/appl/R-4.1/lib64/R/library","/home/zhengren/Desktop/cluster_set_up/r_packages"))
 library(shiny)
 library(bslib)
 library(shinydashboard)

@@ -20,7 +20,7 @@ show_help() {
   echo "  --csf   Specify whether to extract CSF mask. Default is TRUE"
   echo "  --step   Specify the step of pipeline. estimation or consolidation. Default is estimation"
   echo "  --mode   Specify whether to run the pipeline individually or in a batch: individual or batch. Default is batch"
-  echo "  -c, --container   Specify the container to use: singularity, docker, none-local, none-cluster. Default is none-cluster"
+  echo "  -c, --container   Specify the container to use: singularity, docker, local, cluster. Default is cluster"
   echo "  --sinpath   Specify the path to the singularity image if a singularity container is used"
   echo "  --toolpath   Specify the path to the saved pipeline folder, eg: /path/to/folder"
 }
@@ -48,7 +48,7 @@ threshold=0.2
 csf=TRUE
 step=estimation
 mode=batch
-c=none-cluster
+c=cluster
 sin_path=""
 tool_path=""
 
@@ -179,12 +179,12 @@ if [ "$step" == "estimation" ]; then
           t1_r=`find $main_path/data/$p/$s/anat -name $t1 -type f | xargs -I {} basename {}`
           flair_r=`find $main_path/data/$p/$s/anat -name $flair -type f | xargs -I {} basename {}`
           epi_r=`find $main_path/data/$p/$s/anat -name $epi -type f | xargs -I {} basename {}`
-          if [ "$c" == "none-cluster" ]; then
+          if [ "$c" == "cluster" ]; then
             bsub Rscript $tool_path/pipelines/cvs/code/R/cvs.R --mainpath $main_path \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --epi $epi_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
             --csf $csf --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions
-          elif [ "$c" == "none-local" ]; then
+          elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/cvs/code/R/cvs.R --mainpath $main_path \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --epi $epi_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
@@ -223,12 +223,12 @@ if [ "$step" == "estimation" ]; then
     t1_r=`find $main_path/data/$p/$ses/anat -name $t1 -type f | xargs -I {} basename {}`
     flair_r=`find $main_path/data/$p/$ses/anat -name $flair -type f | xargs -I {} basename {}`
     epi_r=`find $main_path/data/$p/$ses/anat -name $epi -type f | xargs -I {} basename {}`
-    if [ "$c" == "none-cluster" ]; then
+    if [ "$c" == "cluster" ]; then
             bsub Rscript $tool_path/pipelines/cvs/code/R/cvs.R --mainpath $main_path \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --epi $epi_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
             --csf $csf --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions
-          elif [ "$c" == "none-local" ]; then
+          elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/cvs/code/R/cvs.R --mainpath $main_path \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --epi $epi_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
@@ -255,9 +255,9 @@ if [ "$step" == "estimation" ]; then
 fi 
 
 if [ "$step" == "consolidation" ]; then
-  if [ "$c" == "none-cluster" ]; then
+  if [ "$c" == "cluster" ]; then
     bsub Rscript $tool_path/pipelines/cvs/code/R/cvs.R --mainpath $main_path --step $step
-  elif [ "$c" == "none-local" ]; then
+  elif [ "$c" == "local" ]; then
     Rscript $tool_path/pipelines/cvs/code/R/cvs.R --mainpath $main_path --step $step
   elif [ "$c" == "singularity" ]; then
     module load singularity

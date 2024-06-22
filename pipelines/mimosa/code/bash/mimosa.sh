@@ -16,7 +16,7 @@ show_help() {
   echo "  -w, --whitestripe   Specify whether to run whitestripe step. Default is TRUE"
   echo "  --threshold   Specify the threshold used to generate mimosa mask. Default is 0.2"
   echo "  --mode   Specify whether to run the pipeline individually or in a batch: individual or batch. Default is batch"
-  echo "  -c, --container   Specify the container to use: singularity, docker, none-local, none-cluster. Default is none-cluster"
+  echo "  -c, --container   Specify the container to use: singularity, docker, local, cluster. Default is cluster"
   echo "  --sinpath   Specify the path to the singularity image if a singularity container is used"
   echo "  --toolpath   Specify the path to the saved pipeline folder, eg: /path/to/folder"
 }
@@ -40,7 +40,7 @@ registration=TRUE
 whitestripe=TRUE
 threshold=0.2
 mode=batch
-c=none-cluster
+c=cluster
 sin_path=""
 tool_path=""
 
@@ -148,12 +148,12 @@ if [ "$mode" == "batch" ]; then
       do
         t1_r=`find $main_path/data/$p/$s/anat -name $t1 -type f | xargs -I {} basename {}`
         flair_r=`find $main_path/data/$p/$s/anat -name $flair -type f | xargs -I {} basename {}`
-        if [ "$c" == "none-cluster" ]; then
+        if [ "$c" == "cluster" ]; then
           bsub Rscript $tool_path/pipelines/mimosa/code/R/mimosa.R --mainpath $main_path \
           --participant $p --session $s --t1 $t1_r --flair $flair_r --n4 $n4 --skullstripping $skullstripping \
           --registration $registration --whitestripe $whitestripe --threshold $threshold \
           --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData
-        elif [ "$c" == "none-local" ]; then
+        elif [ "$c" == "local" ]; then
           Rscript $tool_path/pipelines/mimosa/code/R/mimosa.R --mainpath $main_path \
           --participant $p --session $s --t1 $t1_r --flair $flair_r --n4 $n4 --skullstripping $skullstripping \
           --registration $registration --whitestripe $whitestripe --threshold $threshold \
@@ -193,12 +193,12 @@ elif [ "$mode" == "individual" ]; then
   t1_r=`find $main_path/data/$p/$ses/anat -name $t1 -type f | xargs -I {} basename {}`
   flair_r=`find $main_path/data/$p/$ses/anat -name $flair -type f | xargs -I {} basename {}`
   
-  if [ "$c" == "none-cluster" ]; then
+  if [ "$c" == "cluster" ]; then
     bsub Rscript $tool_path/pipelines/mimosa/code/R/mimosa.R --mainpath $main_path \
     --participant $p --session $ses --t1 $t1_r --flair $flair_r --n4 $n4 --skullstripping $skullstripping \
     --registration $registration --whitestripe $whitestripe --threshold $threshold \
     --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData
-  elif [ "$c" == "none-local" ]; then
+  elif [ "$c" == "local" ]; then
           Rscript $tool_path/pipelines/mimosa/code/R/mimosa.R --mainpath $main_path \
           --participant $p --session $ses --t1 $t1_r --flair $flair_r --n4 $n4 --skullstripping $skullstripping \
           --registration $registration --whitestripe $whitestripe --threshold $threshold \
