@@ -35,6 +35,10 @@ bash ./PennSIVE_neuro_pip/pipelines/cvs/code/bash/cvs.sh -m ./project -p sub-001
 -   `docker`
 
 ```bash
+docker pull pennsive/neuror
+```
+
+```bash
 bash ./PennSIVE_neuro_pip/pipelines/cvs/code/bash/cvs.sh -m ./project -p sub-001 --ses ses-01 -t "*_T1w.nii.gz" -f "*_FLAIR.nii.gz" -e "*_T2star.nii.gz" -s TRUE --mode individual -c "docker" --toolpath ./PennSIVE_neuro_pip 
 ```
 
