@@ -21,7 +21,8 @@ show_help() {
   echo "  --step   Specify the step of pipeline. preparation, PRL_run or consolidation. Default is preparation"
   echo "  --mode   Specify whether to run the pipeline individually or in a batch: individual or batch. Default is batch"
   echo "  -c, --container   Specify the container to use: singularity, docker, local, cluster. Default is cluster"
-  echo "  --sinpath   Specify the path to the singularity image if a singularity container is used"
+  echo "  --sinpath   Specify the path to the singularity image if a singularity container is used. A default path is provided: /project/singularity_images/neuror_latest.sif"
+  echo "  --dockerpath   Specify the path to the docker image if a docker container is used. A default path is provided: pennsive/neuror"
   echo "  --toolpath   Specify the path to the saved pipeline folder, eg: /path/to/folder"
 }
 
@@ -49,8 +50,9 @@ dilation=TRUE
 step=preparation
 mode=batch
 c=cluster
-sin_path=""
+sin_path="/project/singularity_images/neuror_latest.sif"
 tool_path=""
+docker_path=pennsive/neuror
 
 # Parse command-line arguments
 while [ $# -gt 0 ]; do
@@ -127,6 +129,10 @@ while [ $# -gt 0 ]; do
       shift
       sin_path=$1
       ;;
+    --dockerpath)
+      shift
+      docker_path=$1
+      ;;
     --toolpath)
       shift
       tool_path=$1
@@ -146,6 +152,9 @@ if [ -z "$main_path" ]; then
   show_help
   exit 1
 fi
+
+mkdir -p $main_path/log/output
+mkdir -p $main_path/log/error
 
 if [ "$step" == "preparation" ]; then
   if [ -z "$t1" ]; then
@@ -179,7 +188,8 @@ if [ "$step" == "preparation" ]; then
           flair_r=`find $main_path/data/$p/$s/anat -name $flair -type f | xargs -I {} basename {}`
           phase_r=`find $main_path/data/$p/$s/anat -name $phase -type f | xargs -I {} basename {}`
           if [ "$c" == "cluster" ]; then
-            bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
+            bsub -oo $main_path/log/output/prl_output_${p}_${s}.log -eo $main_path/log/error/prl_error_${p}_${s}.log \
+            Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
             --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions
@@ -187,10 +197,10 @@ if [ "$step" == "preparation" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
-            --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions
+            --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions > $main_path/log/output/prl_output_${p}_${s}.log 2> $main_path/log/error/prl_error_${p}_${s}.log
           elif [ "$c" == "singularity" ]; then
             module load singularity
-            bsub -J "APRL" singularity run --cleanenv \
+            bsub -J "APRL" -oo $main_path/log/output/prl_output_${p}_${s}.log -eo $main_path/log/error/prl_error_${p}_${s}.log singularity run --cleanenv \
                -B $main_path \
                -B $tool_path \
                -B /scratch $sin_path \
@@ -199,10 +209,10 @@ if [ "$step" == "preparation" ]; then
                --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
                --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --helpfunc $tool_path/help_functions
           elif [ "$c" == "docker" ]; then
-            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
+            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
             --participant $p --session $s --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
-            --dilation $dilation --step $step --lesioncenter /home/tool/lesioncenter --mpath /home/tool/pipelines/mimosa/model/mimosa_model.RData --helpfunc /home/tool/help_functions
+            --dilation $dilation --step $step --lesioncenter /home/tool/lesioncenter --mpath /home/tool/pipelines/mimosa/model/mimosa_model.RData --helpfunc /home/tool/help_functions > /home/main/log/output/prl_output_${p}_${s}.log 2> /home/main/log/error/prl_error_${p}_${s}.log
           fi
         done
     done
@@ -224,7 +234,8 @@ if [ "$step" == "preparation" ]; then
     flair_r=`find $main_path/data/$p/$ses/anat -name $flair -type f | xargs -I {} basename {}`
     phase_r=`find $main_path/data/$p/$ses/anat -name $phase -type f | xargs -I {} basename {}`
     if [ "$c" == "cluster" ]; then
-            bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
+            bsub -oo $main_path/log/output/prl_output_${p}_${ses}.log -eo $main_path/log/error/prl_error_${p}_${ses}.log \
+            Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
             --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
@@ -232,10 +243,10 @@ if [ "$step" == "preparation" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
-            --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
+            --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions > $main_path/log/output/prl_output_${p}_${ses}.log 2> $main_path/log/error/prl_error_${p}_${ses}.log
           elif [ "$c" == "singularity" ]; then
             module load singularity
-            bsub -J "APRL" singularity run --cleanenv \
+            bsub -J "APRL" -oo $main_path/log/output/prl_output_${p}_${ses}.log -eo $main_path/log/error/prl_error_${p}_${ses}.log singularity run --cleanenv \
                -B $main_path \
                -B $tool_path \
                -B /scratch $sin_path \
@@ -244,10 +255,10 @@ if [ "$step" == "preparation" ]; then
                --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
                --dilation $dilation --step $step --lesioncenter $tool_path/lesioncenter --mpath $tool_path/pipelines/mimosa/model/mimosa_model.RData --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "docker" ]; then
-            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
+            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
             --participant $p --session $ses --t1 $t1_r --flair $flair_r --phase $phase_r --n4 $n4 --skullstripping $skullstripping \
             --registration $registration --whitestripe $whitestripe --mimosa $mimosa --threshold $threshold \
-            --dilation $dilation --step $step --lesioncenter /home/tool/lesioncenter --mpath /home/tool/pipelines/mimosa/model/mimosa_model.RData --aprlpath /home/tool/pipelines/PRL/model/prl_model.rds --helpfunc /home/tool/help_functions
+            --dilation $dilation --step $step --lesioncenter /home/tool/lesioncenter --mpath /home/tool/pipelines/mimosa/model/mimosa_model.RData --aprlpath /home/tool/pipelines/PRL/model/prl_model.rds --helpfunc /home/tool/help_functions > /home/main/log/output/prl_output_${p}_${ses}.log 2> /home/main/log/error/prl_error_${p}_${ses}.log
           fi
 
   fi
@@ -266,22 +277,23 @@ if [ "$step" == "PRL_run" ]; then
         for s in $ses;
         do
           if [ "$c" == "cluster" ]; then
-            bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
+            bsub -oo $main_path/log/output/prl_output_${p}_${s}.log -eo $main_path/log/error/prl_error_${p}_${s}.log \
+            Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
-            --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
+            --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions > $main_path/log/output/prl_output_${p}_${s}.log 2> $main_path/log/error/prl_error_${p}_${s}.log
           elif [ "$c" == "singularity" ]; then
             module load singularity
-            bsub -J "APRL" singularity run --cleanenv \
+            bsub -J "APRL" -oo $main_path/log/output/prl_output_${p}_${s}.log -eo $main_path/log/error/prl_error_${p}_${s}.log singularity run --cleanenv \
                -B $main_path \
                -B $tool_path \
                -B /scratch $sin_path \
                Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "docker" ]; then
-            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
-            --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath /home/tool/pipelines/PRL/model/prl_model.rds --helpfunc /home/tool/help_functions
+            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
+            --participant $p --session $s --step $step --lesioncenter $tool_path/lesioncenter --aprlpath /home/tool/pipelines/PRL/model/prl_model.rds --helpfunc /home/tool/help_functions > /home/main/log/output/prl_output_${p}_${s}.log 2> /home/main/log/error/prl_error_${p}_${s}.log
           fi
         done
     done
@@ -299,22 +311,23 @@ if [ "$step" == "PRL_run" ]; then
     fi
 
     if [ "$c" == "cluster" ]; then
-            bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
+            bsub -oo $main_path/log/output/prl_output_${p}_${ses}.log -eo $main_path/log/error/prl_error_${p}_${ses}.log \
+            Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "local" ]; then
             Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
-            --participant $p --session $ses --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
+            --participant $p --session $ses --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions > $main_path/log/output/prl_output_${p}_${ses}.log 2> $main_path/log/error/prl_error_${p}_${ses}.log
           elif [ "$c" == "singularity" ]; then
             module load singularity
-            bsub -J "APRL" singularity run --cleanenv \
+            bsub -J "APRL" -oo $main_path/log/output/prl_output_${p}_${ses}.log -eo $main_path/log/error/prl_error_${p}_${ses}.log singularity run --cleanenv \
                -B $main_path \
                -B $tool_path \
                -B /scratch $sin_path \
                Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path \
             --participant $p --session $ses --step $step --lesioncenter $tool_path/lesioncenter --aprlpath $tool_path/pipelines/PRL/model/prl_model.rds --helpfunc $tool_path/help_functions
           elif [ "$c" == "docker" ]; then
-            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
-            --participant $p --session $ses --step $step --lesioncenter /home/tool/lesioncenter --aprlpath /home/tool/pipelines/PRL/model/prl_model.rds --helpfunc /home/tool/help_functions
+            docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath /home/main \
+            --participant $p --session $ses --step $step --lesioncenter /home/tool/lesioncenter --aprlpath /home/tool/pipelines/PRL/model/prl_model.rds --helpfunc /home/tool/help_functions > /home/main/log/output/prl_output_${p}_${ses}.log 2> /home/main/log/error/prl_error_${p}_${ses}.log
           fi
 
   fi
@@ -323,18 +336,19 @@ fi
 
 if [ "$step" == "consolidation" ]; then
   if [ "$c" == "cluster" ]; then
-    bsub Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step
-  elif [ "$c" == "local" ]; then
+    bsub -oo $main_path/log/output/prl_output_consolidation.log -eo $main_path/log/error/prl_error_consolidation.log \
     Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step
+  elif [ "$c" == "local" ]; then
+    Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step > $main_path/log/output/prl_output_consolidation.log 2> $main_path/log/error/prl_error_consolidation.log
   elif [ "$c" == "singularity" ]; then
     module load singularity
-    bsub -J "cvs" singularity run --cleanenv \
+    bsub -J "APRL" -oo $main_path/log/output/prl_output_consolidation.log -eo $main_path/log/error/prl_error_consolidation.log singularity run --cleanenv \
        -B $main_path \
        -B $tool_path \
        -B /scratch $sin_path \
        Rscript $tool_path/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step
   elif [ "$c" == "docker" ]; then
-    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step
+    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/PRL/code/R/PRL.R --mainpath $main_path --step $step > /home/main/log/output/prl_output_consolidation.log 2> /home/main/log/error/prl_error_consolidation.log
   fi
 fi
   

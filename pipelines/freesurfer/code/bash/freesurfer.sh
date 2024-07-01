@@ -12,7 +12,8 @@ show_help() {
   echo "  --ses  Specify the session name of the participant if run individually"
   echo "  -n, --name  Specify the name pattern of T1 images"
   echo "  -t, --toolpath  Specify the path to useful scripts or licenses"
-  echo "  --sinpath  Specify the path to a singularity image to be used"
+  echo "  --sinpath   Specify the path to the singularity image if a singularity container is used. A default path is provided: /project/singularity_images/neuror_latest.sif"
+  echo "  --dockerpath   Specify the path to the docker image if a docker container is used. A default path is provided: pennsive/neuror"
   echo "  -c, --container  Specify the type of container to use. docker or singularity. Default is singularity"
   echo "  -s, --step   Specify the step of pipeline. segmentation, estimation or consolidation. Default is segmentation"
 }
@@ -31,7 +32,8 @@ name=""
 step=segmentation
 container=singularity
 mode=batch
-sin_path=""
+sin_path="/project/singularity_images/neuror_latest.sif"
+docker_path=pennsive/neuror
 
 # Parse command-line arguments
 while [ $# -gt 0 ]; do
@@ -64,6 +66,10 @@ while [ $# -gt 0 ]; do
       shift
       sin_path=$1
       ;;
+    --dockerpath)
+      shift
+      docker_path=$1
+      ;;
     -t|--toolpath)
       shift
       tool_path=$1
@@ -85,6 +91,9 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+mkdir -p $main_path/log/output
+mkdir -p $main_path/log/error
+
 if [ "$mode" = "batch" ];then
   if [ "$container" = "singularity" ];then
     module load singularity
@@ -93,7 +102,7 @@ if [ "$mode" = "batch" ];then
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
-          bsub -J "segmentation" singularity run --cleanenv \
+          bsub -J "segmentation" -oo $main_path/log/output/freesurfer_output_${subject}_${session}.log -eo $main_path/log/error/freesurfer_error_${subject}_${session}.log singularity run --cleanenv \
           -B $main_path \
           -B $tool_path \
           -B /scratch \
@@ -108,7 +117,7 @@ if [ "$mode" = "batch" ];then
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
-          bsub -J "estimation" singularity run --cleanenv \
+          bsub -J "estimation" -oo $main_path/log/output/freesurfer_output_${subject}_${session}.log -eo $main_path/log/error/freesurfer_error_${subject}_${session}.log singularity run --cleanenv \
           -B $main_path \
           -B $tool_path \
           -B /scratch \
@@ -119,7 +128,7 @@ if [ "$mode" = "batch" ];then
     fi
 
     if [ "$step" = "consolidation" ];then
-      bsub -J "segmentation" singularity run --cleanenv \
+      bsub -J "segmentation" -oo $main_path/log/output/freesurfer_output_consolidation.log -eo $main_path/log/error/freesurfer_error_consolidation.log singularity run --cleanenv \
            -B $main_path \
            -B $tool_path \
            -B /scratch \
@@ -142,8 +151,8 @@ if [ "$mode" = "batch" ];then
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
           -e FS_LICENSE=/home/tool/license/license.txt \
-          pennsive/neuror \
-          recon-all -i $new_inv -subject $SUBJECTS_DIR/freesurfer -all
+          $docker_path \
+          recon-all -i $new_inv -subject $SUBJECTS_DIR/freesurfer -all > /home/main/log/output/freesurfer_output_${subject}_${session}.log -eo /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
 
@@ -159,8 +168,8 @@ if [ "$mode" = "batch" ];then
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
           -e FS_LICENSE=/home/tool/license/license.txt \
-          pennsive/neuror \
-          Rscript /home/tool/code/R/extraction.R -m /home/main -p $subject -s $session
+          $docker_path \
+          Rscript /home/tool/code/R/extraction.R -m /home/main -p $subject -s $session > /home/main/log/output/freesurfer_output_${subject}_${session}.log -eo /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
 
@@ -168,8 +177,8 @@ if [ "$mode" = "batch" ];then
       docker run --rm -it \
       -v $main_path:/home/main \
       -v $tool_path:/home/tool \
-      pennsive/neuror \
-      Rscript /home/tool/code/R/consolidation.R -m /home/main
+      $docker_path \
+      Rscript /home/tool/code/R/consolidation.R -m /home/main > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
     fi
   fi
 fi
@@ -178,7 +187,7 @@ if [ "$mode" = "individual" ];then
   if [ "$container" = "singularity" ];then
     if [ "$step" = "segmentation" ];then
       module load singularity
-      bsub -J "segmentation" singularity run --cleanenv \
+      bsub -J "segmentation" -oo $main_path/log/output/freesurfer_output_${p}_${ses}.log -eo $main_path/log/error/freesurfer_error_${p}_${ses}.log singularity run --cleanenv \
       -B $main_path \
       -B $tool_path \
       -B /scratch \
@@ -192,7 +201,7 @@ if [ "$mode" = "individual" ];then
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
-          bsub -J "estimation" singularity run --cleanenv \
+          bsub -J "estimation" -oo $main_path/log/output/freesurfer_output_${subject}_${session}.log -eo $main_path/log/error/freesurfer_error_${subject}_${session}.log singularity run --cleanenv \
           -B $main_path \
           -B $tool_path \
           -B /scratch \
@@ -217,8 +226,8 @@ if [ "$mode" = "individual" ];then
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
           -e FS_LICENSE=/home/tool/license/license.txt \
-          pennsive/neuror \
-          recon-all -i $new_inv -subject $SUBJECTS_DIR/freesurfer -all
+          $docker_path \
+          recon-all -i $new_inv -subject $SUBJECTS_DIR/freesurfer -all > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
 
@@ -233,8 +242,8 @@ if [ "$mode" = "individual" ];then
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
           -e FS_LICENSE=/home/tool/license/license.txt \
-          pennsive/neuror \
-          Rscript /home/tool/code/R/extraction.R -m /home/main -p $subject -s $session
+          $docker_path \
+          Rscript /home/tool/code/R/extraction.R -m /home/main -p $subject -s $session > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
   fi
