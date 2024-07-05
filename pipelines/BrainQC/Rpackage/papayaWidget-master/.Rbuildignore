@@ -1,6 +1,0 @@
-^docs$
-^_pkgdown\.yml$
-^\.travis\.yml$
-^README\.Rmd$
-^.*\.Rproj$
-^\.Rproj\.user$
