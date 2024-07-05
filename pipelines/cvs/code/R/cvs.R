@@ -290,13 +290,17 @@ if (argv$step == "estimation"){
     print(paste0("Done with lesion ", j ," of ", maxles))
   }
   writenii(probles, paste0(cvs.out.dir,"/cvs_probmap.nii.gz"))
-  saveRDS(avprob, paste0(cvs.out.dir,"/cvs_avprob"))
+  #saveRDS(avprob, paste0(cvs.out.dir,"/cvs_avprob"))
   cvs.biomarker = mean(avprob)
+  cvs.biomarker.lesion = avprob
   numles = maxles
+  lesion_id = 1:numles
   subject_id = p
   session_id = ses
   summary_df = data.frame(cbind(subject_id, session_id, numles, cvs.biomarker))
+  summary_df_lesion = data.frame(cbind(subject_id = rep(subject_id, numles), session_id = rep(session_id, numles), lesion_id, cvs.score = cvs.biomarker.lesion))
   write_csv(summary_df, paste0(cvs.out.dir,"/cvs_biomarker.csv"))
+  write_csv(summary_df_lesion, paste0(cvs.out.dir,"/cvs_biomarker_lesion.csv"))
 
   # WhiteStripe EPI Space
   white.epi.out.dir = paste0(main_path, "/data/", p,  "/", ses, "/whitestripe/EPI_space")

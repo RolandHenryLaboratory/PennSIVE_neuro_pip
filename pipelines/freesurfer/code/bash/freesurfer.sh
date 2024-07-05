@@ -98,7 +98,7 @@ if [ "$mode" = "batch" ];then
   if [ "$container" = "singularity" ];then
     module load singularity
     if [ "$step" = "segmentation" ];then
-      for inv in $(find $main_path/data -name $name -type f);
+      for inv in $(find $main_path/data -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -108,12 +108,12 @@ if [ "$mode" = "batch" ];then
           -B /scratch \
           --env SUBJECTS_DIR=$main_path/data/$subject/$session \
           --env SURFER_FRONTDOOR=1 \
-          --env FS_LICENSE=$tool_path/license/license.txt $sin_path recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
+          --env FS_LICENSE=$tool_path/pipelines/freesurfer/license/license.txt $sin_path recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
       done 
     fi
 
     if [ "$step" = "estimation" ];then
-    for inv in $(find $main_path/data -name $name -type f);
+    for inv in $(find $main_path/data -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -123,7 +123,7 @@ if [ "$mode" = "batch" ];then
           -B /scratch \
           --env SUBJECTS_DIR=$main_path/data/$subject/$session \
           --env SURFER_FRONTDOOR=1 \
-          --env FS_LICENSE=$tool_path/license/license.txt $sin_path Rscript $tool_path/code/R/extraction.R -m $main_path -p $subject -s $session
+          --env FS_LICENSE=$tool_path/pipelines/freesurfer/license/license.txt $sin_path Rscript $tool_path/pipelines/freesurfer/code/R/extraction.R -m $main_path -p $subject -s $session
       done 
     fi
 
@@ -133,14 +133,14 @@ if [ "$mode" = "batch" ];then
            -B $tool_path \
            -B /scratch \
       $sin_path \
-      Rscript $tool_path/code/R/consolidation.R -m $main_path
+      Rscript $tool_path/pipelines/freesurfer/code/R/consolidation.R -m $main_path
     fi
 
   fi
 
   if [ "$container" = "docker" ];then
     if [ "$step" = "segmentation" ];then
-      for inv in $(find $main_path/data -name $name -type f);
+      for inv in $(find $main_path/data -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -150,14 +150,14 @@ if [ "$mode" = "batch" ];then
           -v $tool_path:/home/tool \
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
-          -e FS_LICENSE=/home/tool/license/license.txt \
+          -e FS_LICENSE=/home/tool/pipelines/freesurfer/license/license.txt \
           $docker_path \
           recon-all -i $new_inv -subject $SUBJECTS_DIR/freesurfer -all > /home/main/log/output/freesurfer_output_${subject}_${session}.log -eo /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
 
     if [ "$step" = "estimation" ];then
-    for inv in $(find $main_path/data -name $name -type f);
+    for inv in $(find $main_path/data -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -167,9 +167,9 @@ if [ "$mode" = "batch" ];then
           -v $tool_path:/home/tool \
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
-          -e FS_LICENSE=/home/tool/license/license.txt \
+          -e FS_LICENSE=/home/tool/pipelines/freesurfer/license/license.txt \
           $docker_path \
-          Rscript /home/tool/code/R/extraction.R -m /home/main -p $subject -s $session > /home/main/log/output/freesurfer_output_${subject}_${session}.log -eo /home/main/log/error/freesurfer_error_${subject}_${session}.log
+          Rscript /home/tool/pipelines/freesurfer/code/R/extraction.R -m /home/main -p $subject -s $session > /home/main/log/output/freesurfer_output_${subject}_${session}.log -eo /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
 
@@ -178,7 +178,7 @@ if [ "$mode" = "batch" ];then
       -v $main_path:/home/main \
       -v $tool_path:/home/tool \
       $docker_path \
-      Rscript /home/tool/code/R/consolidation.R -m /home/main > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
+      Rscript /home/tool/pipelines/freesurfer/code/R/consolidation.R -m /home/main > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
     fi
   fi
 fi
@@ -193,11 +193,11 @@ if [ "$mode" = "individual" ];then
       -B /scratch \
       --env SUBJECTS_DIR=$main_path/data/$p/$ses \
       --env SURFER_FRONTDOOR=1 \
-      --env FS_LICENSE=$tool_path/license/license.txt $sin_path recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
+      --env FS_LICENSE=$tool_path/pipelines/freesurfer/license/license.txt $sin_path recon-all -i $inv -subject $SUBJECTS_DIR/freesurfer -all
     fi
 
     if [ "$step" = "estimation" ];then
-    for inv in $(find $main_path/data/$p/$ses -name $name -type f);
+    for inv in $(find $main_path/data/$p/$ses -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -207,7 +207,7 @@ if [ "$mode" = "individual" ];then
           -B /scratch \
           --env SUBJECTS_DIR=$main_path/data/$subject/$session \
           --env SURFER_FRONTDOOR=1 \
-          --env FS_LICENSE=$tool_path/license/license.txt $sin_path Rscript $tool_path/code/R/extraction.R -m $main_path -p $subject -s $session
+          --env FS_LICENSE=$tool_path/pipelines/freesurfer/license/license.txt $sin_path Rscript $tool_path/pipelines/freesurfer/code/R/extraction.R -m $main_path -p $subject -s $session
       done 
     fi
 
@@ -215,7 +215,7 @@ if [ "$mode" = "individual" ];then
 
   if [ "$container" = "docker" ];then
     if [ "$step" = "segmentation" ];then
-      for inv in $(find $main_path/data/$p/$ses -name $name -type f);
+      for inv in $(find $main_path/data/$p/$ses -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -225,14 +225,14 @@ if [ "$mode" = "individual" ];then
           -v $tool_path:/home/tool \
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
-          -e FS_LICENSE=/home/tool/license/license.txt \
+          -e FS_LICENSE=/home/tool/pipelines/freesurfer/license/license.txt \
           $docker_path \
           recon-all -i $new_inv -subject $SUBJECTS_DIR/freesurfer -all > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
 
     if [ "$step" = "estimation" ];then
-    for inv in $(find $main_path/data/$p/$ses -name $name -type f);
+    for inv in $(find $main_path/data/$p/$ses -name $name -type f | grep anat);
       do
           subject=`echo $inv |rev | cut -f 4 -d '/' | rev`
           session=`echo $inv |rev | cut -f 3 -d '/' | rev`
@@ -241,9 +241,9 @@ if [ "$mode" = "individual" ];then
           -v $tool_path:/home/tool \
           -e SUBJECTS_DIR=/home/main/data/$subject/$session \
           -e SURFER_FRONTDOOR=1 \
-          -e FS_LICENSE=/home/tool/license/license.txt \
+          -e FS_LICENSE=/home/tool/pipelines/freesurfer/license/license.txt \
           $docker_path \
-          Rscript /home/tool/code/R/extraction.R -m /home/main -p $subject -s $session > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
+          Rscript /home/tool/pipelines/freesurfer/code/R/extraction.R -m /home/main -p $subject -s $session > /home/main/log/output/freesurfer_output_${subject}_${session}.log 2> /home/main/log/error/freesurfer_error_${subject}_${session}.log
       done 
     fi
   fi

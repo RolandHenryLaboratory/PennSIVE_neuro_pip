@@ -1,16 +1,3 @@
-#.libPaths(c("/misc/appl/R-4.1/lib64/R/library","/home/zhengren/Desktop/cluster_set_up/r_packages"))
-#library(fslr)
-#library(neurobase)
-#library(ANTsR)
-#library(extrantsr)
-#library(neuroim)
-#library(purrr)
-#library(pbapply)
-
-#my_path = "/home/zhengren/Desktop/Project/Luyun/lesioncenter/"
-#source_files = list.files(my_path)
-#purrr::map(paste0(my_path, source_files), source)
-
 ## Relabel splitted lesions
 relabel=function(split_lesion, s){
   for (i in 1:length(s)){

@@ -7,14 +7,16 @@ show_help() {
   echo "  -h, --help    Show help message"
   echo "  -m, --mainpath    Look for files in the mainpath"
   echo "  -p, --participant    Specify the participant id"
-  echo "  -f, --flair   Specify the FLAIR sequence name"
-  echo "  --mimosa   Specify the mimosa mask or lesion mask name"
+  echo "  -i, --img   Specify the brain image name"
+  echo "  --seg   Specify the roi mask or lesion mask name"
   echo "  --step   Specify the step of pipeline. prep, qc. Default is prep"
   echo "  --cores   Specify number of cores used for paralleling computing. Default is 1"
-  echo "  -o, --out   Specify the path to save outputs. A default path is provided by th pipeline"
+  echo "  -t, --type   Specify the type of qc procedure. Default is lesion"
+  echo "  --defaultseg   Select a default ROI to be evaluated first (when choosing freesurfer or JLF as the type of QC procedure). Default is NULL"
   echo "  --mode   Specify whether to run the pipeline individually or in a batch: individual or batch. Default is batch"
   echo "  -c, --container   Specify the container to use: singularity, docker, local, cluster. Default is cluster"
   echo "  --sinpath   Specify the path to the singularity image if a singularity container is used"
+  echo "  --dockerpath   Specify the path to the docker image if a docker container is used"
   echo "  --toolpath   Specify the path to the saved pipeline folder, eg: /path/to/folder"
 }
 
@@ -28,14 +30,17 @@ fi
 # Initialize variables
 main_path=""
 p=""
-flair=""
-mimosa=""
+img=""
+seg=""
 step=prep
 cores=1
+type=lesion
+default_seg=NULL
 out=""
 mode=batch
 c=cluster
 sin_path=""
+docker_path=""
 tool_path=""
 
 # Parse command-line arguments
@@ -53,17 +58,25 @@ while [ $# -gt 0 ]; do
       shift
       p=$1
       ;;
-    -f|--flair)
+    -i|--img)
       shift
-      flair=$1
+      img=$1
       ;;
-    --mimosa)
+    --seg)
       shift
-      mimosa=$1
+      seg=$1
       ;;
     --cores)
       shift
       cores=$1
+      ;;
+    -t|--type)
+      shift
+      type=$1
+      ;;
+    --defaultseg)
+      shift
+      default_seg=$1
       ;;
     -o|--out)
       shift
@@ -84,6 +97,10 @@ while [ $# -gt 0 ]; do
     --sinpath)
       shift
       sin_path=$1
+      ;;
+    --dockerpath)
+      shift
+      docker_path=$1
       ;;
     --toolpath)
       shift
@@ -109,14 +126,14 @@ out=$main_path/qc
 
 if [ "$step" == "prep" ]; then
 
-  if [ -z "$flair" ]; then
-    echo "Error: FLAIR not specified."
+  if [ -z "$img" ]; then
+    echo "Error: Brain image not specified."
     show_help
     exit 1
   fi
 
-  if [ -z "$mimosa" ]; then
-    echo "Error: Lesion mask not specified."
+  if [ -z "$seg" ]; then
+    echo "Error: Segmentation image not specified."
     show_help
     exit 1
   fi
@@ -131,22 +148,22 @@ if [ "$step" == "prep" ]; then
     do 
       if [ "$c" == "cluster" ]; then
         bsub -oo $main_path/log/output/qc_output_$p.log -eo $main_path/log/error/qc_error_$p.log \
-        Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-        --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app $tool_path/pipelines/QC_design 
+        Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg
       elif [ "$c" == "local" ]; then
-        Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-        --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app $tool_path/pipelines/QC_design > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
+        Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
       elif [ "$c" == "singularity" ]; then
         module load singularity
         bsub -J "QC" -oo $main_path/log/output/qc_output_$p.log -eo $main_path/log/error/qc_error_$p.log singularity run --cleanenv \
            -B $main_path \
            -B $tool_path \
            -B /scratch $sin_path \
-           Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-           --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app $tool_path/pipelines/QC_design 
+           Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg 
       elif [ "$c" == "docker" ]; then
-        docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-        --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app /home/tool/pipelines/QC_design > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
+        docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path /home/main \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg > /home/main/log/output/qc_output_$p.log 2> /home/main/log/error/qc_error_$p.log
       fi
     done
   elif [ "$mode" == "individual" ]; then
@@ -158,39 +175,39 @@ if [ "$step" == "prep" ]; then
 
     if [ "$c" == "cluster" ]; then
         bsub -oo $main_path/log/output/qc_output_$p.log -eo $main_path/log/error/qc_error_$p.log \
-        Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-        --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app $tool_path/pipelines/QC_design 
+        Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg 
       elif [ "$c" == "local" ]; then
-        Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-        --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app $tool_path/pipelines/QC_design > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
+        Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
       elif [ "$c" == "singularity" ]; then
         module load singularity
         bsub -J "QC" -oo $main_path/log/output/qc_output_$p.log -eo $main_path/log/error/qc_error_$p.log singularity run --cleanenv \
            -B $main_path \
            -B $tool_path \
            -B /scratch $sin_path \
-           Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-           --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app $tool_path/pipelines/QC_design 
+           Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg 
       elif [ "$c" == "docker" ]; then
-        docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path \
-        --participant $p --flair $flair --mimosa $mimosa --cores $cores --out $out --app /home/tool/pipelines/QC_design > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
+        docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path \
+        --participant $p --img $img --seg $seg --cores $cores --out $out --type $type --defaultseg $default_seg > $main_path/log/output/qc_output_$p.log 2> $main_path/log/error/qc_error_$p.log
       fi
   fi
 fi
 
 if [ "$step" == "qc" ]; then
   if [ "$c" == "cluster" ]; then
-    Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path/qc --app $tool_path/pipelines/QC_design 
+    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc --type $type 
   elif [ "$c" == "local" ]; then
-    Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path/qc --app $tool_path/pipelines/QC_design 
+    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc --type $type 
   elif [ "$c" == "singularity" ]; then
     module load singularity
     bsub -J "QC" singularity run --cleanenv \
        -B $main_path \
        -B $tool_path \
        -B /scratch $sin_path \
-       Rscript $tool_path/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path $main_path/qc --app $tool_path/pipelines/QC_design 
+       Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc --type $type 
   elif [ "$c" == "docker" ]; then
-    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool pennsive/neuror Rscript /home/tool/pipelines/QC_design/code/R/QC_CLI.R --stage $step --path /home/main/qc --app /home/tool/pipelines/QC_design 
+    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path /home/main/qc --type $type 
   fi
 fi
