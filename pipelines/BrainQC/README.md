@@ -13,18 +13,77 @@ The Brain WM Lesion/ROI Segmentation QC Shiny App is a collaborative tool design
 
 **Additional Notes**: Users have the option to include additional notes during the evaluation process, providing flexibility and context to the assessment.
 
-## Code Example
+**Post QC Review**: Users can run a Post-QC session through the Shiny App to review evaluation results and investigate questionable images
 
-### Data Structure
+## Diagram
+![BrainQC Workflow](/pipelines/BrainQC/figure/brainqc.png)
 
-![data structure](/pipelines/BrainQC/figure/sample_data.png)
+## Data Structure
+
+This pipeline requires all neuroimages to be organized in the BIDS format.
+
+## Pipeline Options
+We offer two modes for the pipeline: individual and batch. If users want to run the pipeline for different participants one at a time, the participant's ID should be specified. Users can also run the pipeline in batch mode. The participant's ID can be skipped. Additionally, we provide four types of scenarios for running the pipeline: `local` (running the pipeline locally), `cluster` (running the pipeline on High Performance Computing Cluster).
+
+The pipeline contains three stages: 1) QC Preparation: prepares for QC results, 2) Interactive Evaluation: runs interactive QC sessions to evaluate segmentation masks, and 3) Post-QC: reviews QC results interactively.
+
+**Note**: Installation of the BrainQC package can be found below
+
+**on cluster**: 
+```r
+Sys.setenv(CURL_CA_BUNDLE = "/etc/ssl/certs/ca-bundle.trust.crt")
+library(devtools)
+withr::with_libpaths(new = "/path/to/save/r_packages", install_github("Zheng206/BrainQC"))
+# change the QC_CLI.R Script
+.libPaths(c("/misc/appl/R-4.1/lib64/R/library","/path/to/save/r_packages")) 
+```
+
+**local**: 
+```r
+library(devtools)
+withr::with_libpaths(new = "/path/to/save/r_packages", install_github("Zheng206/BrainQC"))
+```
+
+Detailed examples are provided below (all in batch mode): By default, the pipeline is running on PennSIVE cluster. If users want to run locally, set `-c local`
+
 
 **Stage I: Prepare for QC results**
+-   lesion QC
 ```bash
-Rscript ./PennSIVE_neuro_pip/pipelines/QC_design/QC_CLI.R -p ./tmp -f flair_ws.nii.gz -m mimosa_binary_mask_0.25.nii.gz -o /path/to/qc/result.rds -a ./PennSIVE_neuro_pip/pipelines/QC_design
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh -i flair_n4_brain.nii.gz --seg mimosa_mask.nii.gz -t lesion --toolpath /path/to/PennSIVE_neuro_pip 
+```
+
+-   freesurfer QC
+```bash
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh -i ^brain.mgz --seg ^aseg.mgz -t freesurfer --defaultseg choroid-plexus --toolpath /path/to/PennSIVE_neuro_pip 
+```
+
+-   JLF QC
+```bash
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh -i *T1w_brain.nii.gz --seg fused_WMGM_seg.nii.gz -t JLF --toolpath /path/to/PennSIVE_neuro_pip 
+```
+
+-   cvs QC
+```bash
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh -i epi_n4_brain.nii.gz --seg les_reg_epi.nii.gz -t cvs --toolpath /path/to/PennSIVE_neuro_pip 
+```
+
+-   PRL QC
+```bash
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh -i phase_n4_brain.nii.gz --seg lesions_reg_epi_labeled.nii.gz -t PRL --toolpath /path/to/PennSIVE_neuro_pip 
 ```
 
 **Stage II: Interactive Evaluation**
+
 ```bash
-Rscript ./PennSIVE_neuro_pip/pipelines/QC_design/QC_CLI.R -p /path/to/qc -s qc -a ./PennSIVE_neuro_pip/pipelines/QC_design
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh --step qc -t lesion
 ```
+
+![qc_demo](/pipelines/BrainQC/figure/qc_demo.gif)
+
+**Stage III: Post-QC Review**
+
+```bash
+bash /path/to/PennSIVE_neuro_pip/pipelines/BrainQC/code/bash/QC.sh --step post 
+```
+![post_qc](/pipelines/BrainQC/figure/post_qc.gif)

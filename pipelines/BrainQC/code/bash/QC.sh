@@ -9,7 +9,7 @@ show_help() {
   echo "  -p, --participant    Specify the participant id"
   echo "  -i, --img   Specify the brain image name"
   echo "  --seg   Specify the roi mask or lesion mask name"
-  echo "  --step   Specify the step of pipeline. prep, qc. Default is prep"
+  echo "  --step   Specify the step of pipeline. prep, qc, post. Default is prep"
   echo "  --cores   Specify number of cores used for paralleling computing. Default is 1"
   echo "  -t, --type   Specify the type of qc procedure. Default is lesion"
   echo "  --defaultseg   Select a default ROI to be evaluated first (when choosing freesurfer or JLF as the type of QC procedure). Default is NULL"
@@ -78,10 +78,6 @@ while [ $# -gt 0 ]; do
       shift
       default_seg=$1
       ;;
-    -o|--out)
-      shift
-      out=$1
-      ;;
     --step)
       shift
       step=$1
@@ -122,7 +118,7 @@ if [ -z "$main_path" ]; then
   exit 1
 fi
 
-out=$main_path/qc
+out=$main_path/qc/${type}_qc
 
 if [ "$step" == "prep" ]; then
 
@@ -140,7 +136,7 @@ if [ "$step" == "prep" ]; then
 
   mkdir -p $main_path/log/output
   mkdir -p $main_path/log/error
-  mkdir $main_path/qc
+  mkdir -p $main_path/qc/${type}_qc
 
   if [ "$mode" == "batch" ]; then
     patient=`ls $main_path/data`
@@ -197,17 +193,34 @@ fi
 
 if [ "$step" == "qc" ]; then
   if [ "$c" == "cluster" ]; then
-    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc --type $type 
+    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc/${type}_qc --type $type 
   elif [ "$c" == "local" ]; then
-    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc --type $type 
+    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc/${type}_qc --type $type 
   elif [ "$c" == "singularity" ]; then
     module load singularity
     bsub -J "QC" singularity run --cleanenv \
        -B $main_path \
        -B $tool_path \
        -B /scratch $sin_path \
-       Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc --type $type 
+       Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc/${type}_qc --type $type 
   elif [ "$c" == "docker" ]; then
-    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path /home/main/qc --type $type 
+    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path /home/main/qc/${type}_qc --type $type 
+  fi
+fi
+
+if [ "$step" == "post" ]; then
+  if [ "$c" == "cluster" ]; then
+    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc 
+  elif [ "$c" == "local" ]; then
+    Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc 
+  elif [ "$c" == "singularity" ]; then
+    module load singularity
+    bsub -J "QC" singularity run --cleanenv \
+       -B $main_path \
+       -B $tool_path \
+       -B /scratch $sin_path \
+       Rscript $tool_path/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path $main_path/qc
+  elif [ "$c" == "docker" ]; then
+    docker run --rm -it -v $main_path:/home/main -v $tool_path:/home/tool $docker_path Rscript /home/tool/pipelines/BrainQC/code/R/QC_CLI.R --stage $step --path /home/main/qc
   fi
 fi
