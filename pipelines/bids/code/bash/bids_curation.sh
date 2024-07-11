@@ -9,9 +9,9 @@ show_help() {
   echo "  -p, --participant    Specify the name of the participant"
   echo "  -s, --session    Specify the name of the session"
   echo "  -c, --container    Specify the type of container to use, docker or singularity. Default is docker"
-  echo "  --sinpath    Specify the path to the saved singularity image if singularity container is being used"
+  echo "  --sinpath    Specify the path to the saved singularity image if singularity container is being used. A default path is provided: /project/singularity_images/heudiconv_latest.sif"
+  echo "  --dockerpath   Specify the path to the docker image if a docker container is used. A default path is provided: nipy/heudiconv"
   echo "  --toolpath    Specify the path to the saved help function scripts"
-  echo "  -t, --template    Specify the path to the template heuristic.py"
   echo "  --step   Specify the step of heudiconv. heuristic, customization, or bids. Default is heuristic"
   echo "  --mode   Specify whether to process data individually or through a batch, individual or batch. Default is individual"
 }
@@ -29,9 +29,9 @@ p=""
 s=""
 mode="individual"
 container="docker"
-sin_path=""
+sin_path="/home/zhengren/Desktop/Project/neuroimaging_pip/code/image/heudiconv_latest.sif"
+docker_path="nipy/heudiconv"
 tool_path=""
-template=""
 step="heuristic"
 
 
@@ -62,13 +62,13 @@ while [ $# -gt 0 ]; do
       shift
       sin_path=$1
       ;;
+    --dockerpath)
+      shift
+      docker_path=$1
+      ;;
     --toolpath)
       shift
       tool_path=$1
-      ;;
-    -t|--template)
-      shift
-      template=$1
       ;;
     --mode)
       shift
@@ -94,21 +94,13 @@ if [ -z "$main_path" ]; then
   exit 1
 fi
 
-if [ "$step" == "heuristic" ]; then
-    if [ -z "$template" ]; then
-      echo "Error: Heuristic Template not provided."
-      show_help
-      exit 1
-    fi
-fi
-
 if [ "$step" == "customization" ]; then
     if [ -z "$tool_path" ]; then
       echo "Error: The path to the help function scripts is not provided."
       show_help
       exit 1
     fi
-    Rscript $tool_path/code/R/heuristic_customize.R -m $main_path
+    Rscript $tool_path/pipelines/bids/code/R/heuristic_customize.R -m $main_path
 fi
 
 if [ "$mode" == "individual" ]; then
@@ -127,19 +119,19 @@ if [ "$mode" == "individual" ]; then
 
     if [ "$container" == "docker" ]; then
         if [ "$step" == "heuristic" ]; then
-            docker run --rm -it -v $main_path:/home nipy/heudiconv:latest -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f convertall -c none 
+            docker run --rm -it -v $main_path:/home $docker_path -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f convertall -c none 
             mkdir -p $main_path/heuristic_script/$p/$s
             mkdir $main_path/heuristic_script/template
             mkdir -p $main_path/dicominfo/$p/$s
-            cp $template $main_path/heuristic_script/template
-            cp $template $main_path/heuristic_script/$p/$s
+            cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/template
+            cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/$p/$s
             dic_info=`find $main_path/bids/.heudiconv/$p -name dicominfo_ses-$s.tsv -type f`
             cp $dic_info $main_path/dicominfo/$p/$s
         fi
 
         if [ "$step" == "bids" ]; then
             rm -r $main_path/bids/.heudiconv
-            docker run --rm -it -v $main_path:/home nipy/heudiconv:latest -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f /home/heuristic_script/$p/$s/heuristic.py -c dcm2niix -b --overwrite
+            docker run --rm -it -v $main_path:/home $docker_path -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f /home/heuristic_script/$p/$s/heuristic.py -c dcm2niix -b --overwrite
         fi
 
     fi 
@@ -160,8 +152,8 @@ if [ "$mode" == "individual" ]; then
             mkdir -p $main_path/heuristic_script/$p/$s 
             mkdir $main_path/heuristic_script/template 
             mkdir -p $main_path/dicominfo/$p/$s 
-            cp $template $main_path/heuristic_script/template  
-            cp $template $main_path/heuristic_script/$p/$s
+            cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/template  
+            cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/$p/$s
             cp $main_path/bids/.heudiconv/$p/info/dicominfo_ses-$s.tsv $main_path/dicominfo/$p/$s
             }
 EOF
@@ -179,7 +171,7 @@ fi
 if [ "$mode" == "batch" ]; then
     patient=`ls $main_path/original_data | sed 's/\/$//'`
     mkdir -p $main_path/heuristic_script/template
-    cp $template $main_path/heuristic_script/template
+    cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/template
     for p in $patient;
     do
         session=`ls $main_path/original_data/$p | grep -v '\.zip$' | sed 's/\/$//'`
@@ -187,17 +179,17 @@ if [ "$mode" == "batch" ]; then
         do
           if [ "$container" == "docker" ]; then
             if [ "$step" == "heuristic" ]; then
-              docker run --rm -it -v $main_path:/home nipy/heudiconv:latest -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f convertall -c none 
+              docker run --rm -it -v $main_path:/home $docker_path -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f convertall -c none 
               mkdir -p $main_path/heuristic_script/$p/$s
               mkdir -p $main_path/dicominfo/$p/$s
-              cp $tool_path/code/python/heuristic.py $main_path/heuristic_script/$p/$s/
+              cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/$p/$s/
               dic_info=`find $main_path/bids/.heudiconv/$p -name dicominfo_ses-$s.tsv -type f`
               cp $dic_info $main_path/dicominfo/$p/$s/
             fi
 
             if [ "$step" == "bids" ]; then
               rm -r $main_path/bids/.heudiconv
-              docker run --rm -it -v $main_path:/home nipy/heudiconv:latest -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f /home/heuristic_script/$p/$s/heuristic.py -c dcm2niix -b --overwrite
+              docker run --rm -it -v $main_path:/home $docker_path -s $p -ss $s -d /home/original_data/{subject}/{session}/*/*.dcm -o /home/bids/ -f /home/heuristic_script/$p/$s/heuristic.py -c dcm2niix -b --overwrite
             fi
           fi
 
@@ -210,8 +202,8 @@ if [ "$mode" == "batch" ]; then
                   mkdir -p $main_path/heuristic_script/$p/$s
                   mkdir $main_path/heuristic_script/template
                   mkdir -p $main_path/dicominfo/$p/$s
-                  cp $template $main_path/heuristic_script/template
-                  cp $template $main_path/heuristic_script/$p/$s
+                  cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/template
+                  cp $tool_path/pipelines/bids/code/python/heuristic.py $main_path/heuristic_script/$p/$s
                   cp $main_path/bids/.heudiconv/$p/info/dicominfo_ses-$s.tsv $main_path/dicominfo/$p/$s
                   }
 EOF
