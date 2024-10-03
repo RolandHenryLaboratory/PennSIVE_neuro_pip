@@ -126,6 +126,14 @@ if (argv$step == "preparation"){
   if (argv$skullstripping){
     dir.create(brain.out.dir,showWarnings = FALSE)
     t1_fslbet_robust = fslbet_robust(t1_biascorrect,reorient = FALSE,correct = FALSE)
+    # ----- Modification: add T2 and FLAIR skull stripping -----
+    phase_fslbet_robust = fslbet_robust(phase_biascorrect,reorient = FALSE,correct = FALSE)
+    flair_fslbet_robust = fslbet_robust(flair_biascorrect,reorient = FALSE,correct = FALSE)
+    writenii(phase_fslbet_robust,paste0(bias.out.dir,"/PHASE_brain_n4.nii.gz"))
+    writenii(flair_fslbet_robust,paste0(bias.out.dir,"/FLAIR_brain_n4.nii.gz"))
+    phase_biascorrect = phase_fslbet_robust
+    # flair_biascorrect = flair_fslbet_robust ## not needed
+    # -------------------------- End ---------------------------
     brain_mask = t1_fslbet_robust > 0 
     writenii(t1_fslbet_robust,paste0(brain.out.dir,"/T1_brain.nii.gz"))
     writenii(t1_fslbet_robust,paste0(bias.out.dir,"/T1_brain_n4.nii.gz"))
@@ -227,7 +235,10 @@ if (argv$step == "preparation"){
     brainmask_reg_epi = ants2oro(antsApplyTransforms(fixed = oro2ants(abs(phase_biascorrect)), moving = oro2ants(brainmask_reg),
                                                     transformlist = flair_to_epi$fwdtransforms, interpolator = "nearestNeighbor"))
     writenii(brainmask_reg_epi, paste0(reg.epi.out.dir,'/brainmask_reg_epi'))
-    phase_n4_brain = phase_biascorrect * brainmask_reg_epi
+    # ----- Modification: add T2 and FLAIR skull stripping -----
+    # phase_n4_brain = phase_biascorrect * brainmask_reg_epi
+    phase_n4_brain = phase_biascorrect
+    # -------------------------- End ---------------------------
     writenii(phase_n4_brain, paste0(reg.epi.out.dir,'/phase_n4_brain'))
 
     t1_reg_epi = ants2oro(antsApplyTransforms(fixed = oro2ants(abs(phase_n4_brain)), moving = oro2ants(t1_reg),
